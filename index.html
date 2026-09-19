@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2b0d12">
+<title>Meia-Noite — um baralho para dois</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Manrope:wght@300..800&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --bg:#2b0d12; --ink:#f4e6da; --dim:#c7a294;
+    --gold:#d2a15a; --gold-hi:#f0ca88; --wine:#a52a40;
+  }
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:'Manrope',sans-serif; overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  :focus-visible{outline:1.5px solid var(--gold);outline-offset:3px}
+  button{font-family:inherit}
+  [hidden]{display:none!important}
+
+  /* ---------- camadas de atmosfera ---------- */
+  #embers{position:fixed;inset:0;z-index:40;pointer-events:none}
+  .vignette{position:fixed;inset:0;z-index:30;pointer-events:none;
+    background:radial-gradient(130% 95% at 50% 42%, transparent 50%, rgba(10,2,4,.62) 100%)}
+  .grain{position:fixed;inset:-60%;width:220%;height:220%;z-index:55;pointer-events:none;opacity:.05;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
+    animation:grain 1.1s steps(3) infinite}
+  @keyframes grain{0%{transform:translate(0,0)}33%{transform:translate(-3%,2%)}66%{transform:translate(2%,-3%)}100%{transform:translate(0,0)}}
+
+  /* ---------- telas ---------- */
+  .screen{display:none;min-height:100dvh;flex-direction:column;align-items:center;justify-content:center;
+    padding:26px 22px;position:relative;max-width:560px;margin:0 auto}
+  .screen.active{display:flex;animation:screenIn .55s cubic-bezier(.2,.8,.25,1)}
+  @keyframes screenIn{from{opacity:0;transform:translateY(14px)}}
+
+  .eyebrow{font-size:10px;letter-spacing:.42em;color:var(--gold);text-transform:uppercase;margin-bottom:18px}
+  .lede{font-size:14.5px;line-height:1.75;color:var(--dim);max-width:310px}
+  .fine{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(199,162,148,.75)}
+
+  /* ---------- ícones ---------- */
+  .ic{display:inline-flex;flex:none}
+  .ic svg{width:14px;height:14px;display:block}
+  .icon-btn .ic svg{width:15px;height:15px}
+
+  /* ---------- botões ---------- */
+  .btn{font-weight:700;font-size:11.5px;line-height:1;letter-spacing:.2em;text-transform:uppercase;
+    padding:16px 26px;border-radius:3px;border:1px solid transparent;cursor:pointer;
+    display:inline-flex;align-items:center;justify-content:center;gap:9px;transition:all .25s;user-select:none}
+  .btn-solid{background:var(--gold);color:#2a1206;border-color:var(--gold)}
+  .btn-solid:hover{background:var(--gold-hi);border-color:var(--gold-hi)}
+  .btn-solid:active{transform:scale(.97)}
+  .btn-ghost{background:transparent;color:var(--ink);border-color:rgba(210,161,90,.4)}
+  .btn-ghost:hover{border-color:var(--gold);background:rgba(210,161,90,.07)}
+  .btn:disabled{opacity:.3;pointer-events:none}
+  .btn-block{width:100%}
+
+  /* ---------- abertura ---------- */
+  #scr-intro{text-align:center}
+  .big-moon{width:58px;height:76px;color:var(--gold-hi);
+    filter:drop-shadow(0 6px 26px rgba(240,200,130,.22));
+    animation:sway 6.5s ease-in-out infinite;transform-origin:50% 92%;margin-bottom:24px}
+  @keyframes sway{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+  h1.title{font-family:'Fraunces',serif;font-weight:600;font-size:clamp(2.9rem,13vw,4.6rem);letter-spacing:.04em;line-height:1.02}
+  .title .hy{color:var(--gold);font-style:italic;font-weight:400;padding:0 .05em}
+  .rule{width:54px;height:1px;background:rgba(210,161,90,.55);margin:22px auto}
+  .intro-cta{margin-top:34px;display:flex;flex-direction:column;align-items:center;gap:16px}
+
+  /* ---------- preparação ---------- */
+  .h-serif{font-family:'Fraunces',serif;font-style:italic;font-weight:500;
+    font-size:clamp(1.7rem,7vw,2.2rem);margin:6px 0 22px}
+  .setup-block{width:100%;margin-bottom:26px}
+  .field{width:100%;margin-bottom:20px}
+  .field label{display:block;font-size:9.5px;letter-spacing:.3em;color:var(--gold);margin-bottom:8px;text-transform:uppercase}
+  .field input{width:100%;background:transparent;border:none;border-bottom:1px solid rgba(210,161,90,.3);
+    padding:9px 2px;color:var(--ink);font-family:'Fraunces',serif;font-style:italic;font-weight:500;font-size:21px;
+    outline:none;transition:border-color .25s;border-radius:0}
+  .field input:focus{border-color:var(--gold)}
+  .field input::placeholder{color:rgba(199,162,148,.4)}
+  .modes{width:100%;display:flex;flex-direction:column;gap:10px;margin-top:18px}
+  .mode{position:relative;display:flex;flex-direction:column;gap:4px;padding:15px 16px 14px 46px;
+    border:1px solid rgba(210,161,90,.2);border-radius:4px;cursor:pointer;transition:border-color .25s,background .25s}
+  .mode:hover{border-color:rgba(210,161,90,.45)}
+  .mode input{position:absolute;opacity:0}
+  .mode .dot{position:absolute;left:16px;top:18px;width:10px;height:10px;border:1px solid rgba(210,161,90,.55);border-radius:50%;transition:.25s}
+  .mode .m-name{font-family:'Fraunces',serif;font-weight:600;font-size:15px}
+  .mode .m-desc{font-size:12.5px;color:var(--dim);line-height:1.5}
+  .mode.sel{border-color:var(--gold);background:rgba(210,161,90,.05)}
+  .mode.sel .dot{background:var(--gold);box-shadow:0 0 0 3px rgba(210,161,90,.18)}
+
+  /* interruptor da trilha */
+  .sound-row{width:100%;display:flex;align-items:center;gap:13px;padding:14px 15px;margin-top:14px;
+    border:1px solid rgba(210,161,90,.2);border-radius:4px;background:transparent;color:var(--ink);
+    cursor:pointer;text-align:left;transition:border-color .25s}
+  .sound-row:hover{border-color:rgba(210,161,90,.45)}
+  .sound-row .ic{color:var(--gold)}
+  .sr-txt{flex:1;display:flex;flex-direction:column;gap:2px}
+  .sr-txt b{font-family:'Fraunces',serif;font-weight:600;font-size:14.5px}
+  .sr-txt small{font-size:11.5px;color:var(--dim);line-height:1.45}
+  .switch{width:36px;height:20px;border:1px solid rgba(210,161,90,.5);border-radius:999px;position:relative;flex:none;transition:.25s}
+  .switch i{position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;background:var(--dim);transition:.25s}
+  .switch[data-on="true"]{background:rgba(210,161,90,.22);border-color:var(--gold)}
+  .switch[data-on="true"] i{left:19px;background:var(--gold-hi)}
+  .setup-note{margin-top:16px;font-size:11px;color:var(--dim);letter-spacing:.05em;text-align:center}
+
+  /* ---------- jogo ---------- */
+  #scr-game{justify-content:flex-start;padding-top:0}
+  #scr-game::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:radial-gradient(360px 420px at 50% 58%, rgba(224,120,96,.07), transparent 70%)}
+  .g-head{width:100%;display:flex;justify-content:space-between;align-items:center;padding:16px 0 4px}
+  .brand{font-family:'Fraunces',serif;font-weight:600;font-size:12px;letter-spacing:.34em;color:var(--gold)}
+  .g-actions{display:flex;gap:8px}
+  .icon-btn{width:34px;height:34px;display:grid;place-items:center;background:transparent;
+    border:1px solid rgba(210,161,90,.25);border-radius:3px;color:var(--dim);cursor:pointer;transition:.25s}
+  .icon-btn:hover{color:var(--gold);border-color:rgba(210,161,90,.6)}
+
+  .status{width:100%;display:flex;justify-content:space-between;align-items:flex-end;padding:6px 0 2px;min-height:56px}
+  .eyebrow-xs{font-size:8.5px;letter-spacing:.32em;color:var(--dim);display:block;margin-bottom:4px;text-transform:uppercase}
+  .turn strong{font-family:'Fraunces',serif;font-weight:600;font-style:italic;font-size:23px}
+  .count{font-size:9px;letter-spacing:.28em;color:var(--dim);text-transform:uppercase;text-align:right;padding-bottom:6px}
+
+  /* palco da carta */
+  .stage{flex:1;width:100%;display:flex;align-items:center;justify-content:center;
+    padding:18px 0;position:relative;z-index:2;perspective:900px}
+  .card-box{position:relative;width:min(74vw,318px);aspect-ratio:5/7;will-change:transform}
+  .card-box::before,.card-box::after{content:'';position:absolute;inset:0;border-radius:11px;z-index:0}
+  .card-box::before{transform:translate(10px,11px) rotate(2.2deg);background:#3a1018;border:1px solid rgba(210,161,90,.14)}
+  .card-box::after{transform:translate(-7px,7px) rotate(-1.7deg);background:#310c12;border:1px solid rgba(210,161,90,.1)}
+  .slide{position:absolute;inset:0;z-index:1;perspective:1100px;
+    transition:transform .55s cubic-bezier(.22,.85,.3,1),opacity .5s ease}
+  .slide.pre{transform:translateY(74px) scale(.93);opacity:0}
+  .slide.out{transform:translateY(-120px) rotate(4deg);opacity:0}
+  .notrans{transition:none!important}
+  .card{position:absolute;inset:0;transform-style:preserve-3d;cursor:pointer;
+    transition:transform .95s cubic-bezier(.3,.75,.25,1)}
+  .card.flipped{transform:rotateY(180deg)}
+  .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+    border-radius:11px;clip-path:inset(0 round 11px)}
+  .back{background:#1f070d;box-shadow:0 34px 60px -22px rgba(0,0,0,.75)}
+  .back svg.orn{position:absolute;inset:0;width:100%;height:100%;border-radius:11px}
+  .front{background:#f1e7d3;transform:rotateY(180deg);color:#2e1c15;
+    display:flex;flex-direction:column;padding:9% 8.5%;box-shadow:0 34px 60px -22px rgba(0,0,0,.75)}
+  .front::before{content:'';position:absolute;inset:8px;border:1px solid rgba(62,36,24,.3);border-radius:6px;pointer-events:none}
+  .sheen{position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(240px 240px at var(--sx,50%) var(--sy,35%), rgba(255,222,160,.16), transparent 65%)}
+  .back .sheen{background:radial-gradient(240px 240px at var(--sx,50%) var(--sy,35%), rgba(255,205,130,.12), transparent 65%)}
+
+  .cf-top{display:flex;justify-content:space-between;font-size:8.5px;letter-spacing:.26em;color:#8a6a48;text-transform:uppercase;flex:none}
+  .cf-tag{align-self:center;margin-top:12px;font-size:8.5px;letter-spacing:.3em;padding:6px 13px 5px;
+    border:1px solid;border-radius:999px;text-transform:uppercase;flex:none}
+  .cf-tag.lv1{color:#7a5a38;border-color:rgba(122,90,56,.5)}
+  .cf-tag.lv2{color:#a3522c;border-color:rgba(163,82,44,.55)}
+  .cf-tag.lv3{color:var(--wine);border-color:rgba(165,42,64,.5)}
+  .cf-tag.final{color:#fff7e8;background:var(--wine);border-color:var(--wine);letter-spacing:.24em}
+  .cf-text{flex:1;min-height:0;overflow:hidden;display:flex;align-items:center;justify-content:center;text-align:center;
+    font-family:'Fraunces',serif;font-weight:500;font-size:clamp(.95rem,3.9vw,1.22rem);line-height:1.5;padding:10px 2px}
+  .cf-text span{display:block}
+  .cf-text .pn{font-style:italic;font-weight:600;color:var(--wine);font-size:.95em;overflow-wrap:anywhere}
+  .cf-text.final-t{font-size:clamp(1rem,4.2vw,1.28rem);font-style:italic}
+  .cf-bottom{display:flex;align-items:center;gap:10px;font-size:8.5px;letter-spacing:.22em;color:#8a6a48;text-transform:uppercase;flex:none}
+  .cf-bottom b{font-family:'Fraunces',serif;font-style:italic;font-weight:600;font-size:13px;color:#2e1c15;letter-spacing:0;text-transform:none}
+  .cf-line{flex:1;height:1px;background:rgba(62,36,24,.22)}
+
+  .hint{font-size:9.5px;letter-spacing:.3em;text-transform:uppercase;color:var(--dim);
+    min-height:14px;margin-bottom:2px;animation:hintPulse 2.2s ease-in-out infinite}
+  @keyframes hintPulse{0%,100%{opacity:.85}50%{opacity:.35}}
+  .actions{width:min(74vw,318px);display:flex;gap:10px;padding:16px 0 30px}
+  .actions .btn{flex:1;padding:15px 10px}
+
+  /* toast */
+  .toast{position:fixed;left:50%;bottom:30px;transform:translate(-50%,16px);z-index:70;
+    background:#3a1118;border:1px solid rgba(210,161,90,.4);color:var(--ink);font-size:12.5px;
+    padding:12px 22px;border-radius:4px;opacity:0;pointer-events:none;transition:.35s;max-width:86vw;text-align:center}
+  .toast.on{opacity:1;transform:translate(-50%,0)}
+
+  /* fim */
+  #scr-end{text-align:center}
+  .end-title{font-family:'Fraunces',serif;font-style:italic;font-weight:500;
+    font-size:clamp(2.5rem,11vw,4rem);line-height:1.08;margin-bottom:8px}
+  .end-title em{color:var(--gold-hi)}
+  .statline{font-family:'Fraunces',serif;font-style:italic;font-weight:500;font-size:15px;
+    color:var(--dim);margin:18px 0 6px;line-height:1.8}
+  .statline b{color:var(--gold);font-weight:600}
+  .end-actions{display:flex;flex-direction:column;gap:10px;width:min(320px,100%);margin-top:30px}
+
+  @media (max-height:740px){
+    .card-box{width:min(62vw,258px)}
+    .actions{padding-bottom:20px}
+    .big-moon{width:46px;height:60px;margin-bottom:16px}
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <mask id="moonCut" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="130">
+    <rect width="100" height="130" fill="#fff"/>
+    <circle cx="70" cy="46" r="44" fill="#000"/>
+  </mask>
+  <symbol id="moonShape" viewBox="0 0 100 130">
+    <circle cx="50" cy="66" r="48" fill="currentColor" mask="url(#moonCut)"/>
+    <circle cx="84" cy="22" r="2.6" fill="currentColor" opacity=".85"/>
+    <circle cx="92" cy="38" r="1.6" fill="currentColor" opacity=".5"/>
+    <circle cx="78" cy="112" r="1.4" fill="currentColor" opacity=".4"/>
+  </symbol>
+</svg>
+
+<canvas id="embers"></canvas>
+<div class="vignette"></div>
+<div class="grain"></div>
+
+<main>
+
+  <!-- ============ ABERTURA ============ -->
+  <section class="screen active" id="scr-intro">
+    <svg class="big-moon" viewBox="0 0 100 130" aria-hidden="true"><use href="#moonShape"/></svg>
+    <p class="eyebrow">Para dois · depois das doze</p>
+    <h1 class="title">MEIA<span class="hy">—</span>NOITE</h1>
+    <div class="rule"></div>
+    <p class="lede">Um baralho picante para casais. Cartas que vão do doce ao ousado — e só valem se os dois quiserem.</p>
+    <div class="intro-cta">
+      <button class="btn btn-solid" id="btnIntro"><span class="ic" data-icon="moon"></span>Abrir o baralho</button>
+      <p class="fine">+18 · jogue com consentimento</p>
+    </div>
+  </section>
+
+  <!-- ============ PREPARAÇÃO ============ -->
+  <section class="screen" id="scr-setup">
+    <div class="setup-block">
+      <p class="eyebrow">Antes de começar</p>
+      <h2 class="h-serif">Quem joga?</h2>
+      <div class="field">
+        <label for="inp1">Primeira pessoa</label>
+        <input id="inp1" placeholder="Ana" maxlength="14" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="inp2">Segunda pessoa</label>
+        <input id="inp2" placeholder="Beto" maxlength="14" autocomplete="off">
+      </div>
+    </div>
+    <div class="setup-block">
+      <h2 class="h-serif">O baralho</h2>
+      <div class="modes">
+        <label class="mode">
+          <input type="radio" name="mode" value="slow">
+          <span class="dot"></span>
+          <span class="m-name">Só cartas leves</span>
+          <span class="m-desc">Apenas as cartas doces, sem ousadia. Para noites calmas e primeiras vezes.</span>
+        </label>
+        <label class="mode sel">
+          <input type="radio" name="mode" value="rising" checked>
+          <span class="dot"></span>
+          <span class="m-name">Baralho completo</span>
+          <span class="m-desc">Começa leve e as cartas vão ficando mais picantes até a última.</span>
+        </label>
+        <label class="mode">
+          <input type="radio" name="mode" value="hot">
+          <span class="dot"></span>
+          <span class="m-name">Direto ao ponto</span>
+          <span class="m-desc">Sem as cartas leves: começa nas ousadas e vai até a última carta.</span>
+        </label>
+      </div>
+      <button class="sound-row" id="ambToggle" type="button">
+        <span class="ic" data-icon="music"></span>
+        <span class="sr-txt">
+          <b>Trilha da noite</b>
+          <small>Jazz lento de strip-tease: contrabaixo, chimbal e metais aveludados.</small>
+        </span>
+        <span class="switch" id="ambSw" data-on="true"><i></i></span>
+      </button>
+    </div>
+    <button class="btn btn-solid btn-block" id="btnStart"><span class="ic" data-icon="moon"></span>Começar a noite</button>
+    <p class="setup-note">Cada um tem direito a 3 passes. Qualquer carta pode ser passada — menos a última.</p>
+  </section>
+
+  <!-- ============ JOGO ============ -->
+  <section class="screen" id="scr-game">
+    <header class="g-head">
+      <span class="brand">M·N</span>
+      <div class="g-actions">
+        <button class="icon-btn" id="btnSound" aria-label="Ligar ou desligar o som">
+          <span id="icoOn"><span class="ic" data-icon="volOn"></span></span>
+          <span id="icoOff" hidden><span class="ic" data-icon="volOff"></span></span>
+        </button>
+        <button class="icon-btn" id="btnRestart" aria-label="Recomeçar"><span class="ic" data-icon="restart"></span></button>
+      </div>
+    </header>
+
+    <div class="status">
+      <div class="turn">
+        <span class="eyebrow-xs">Vez de</span>
+        <strong id="turnName">—</strong>
+      </div>
+      <div class="count" id="countTxt">—</div>
+    </div>
+
+    <div class="stage" id="stage">
+      <div class="card-box" id="cardBox">
+        <div class="slide" id="slide">
+          <div class="card" id="card">
+            <div class="face back">
+              <svg class="orn" viewBox="0 0 250 350" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <rect width="250" height="350" fill="#1f070d"/>
+                <defs>
+                  <pattern id="dam" width="16" height="28" patternUnits="userSpaceOnUse">
+                    <path d="M8 0L16 14L8 28L0 14Z" fill="none" stroke="#d2a15a" stroke-opacity=".09"/>
+                    <circle cx="8" cy="14" r=".8" fill="#d2a15a" fill-opacity=".12"/>
+                  </pattern>
+                </defs>
+                <rect width="250" height="350" fill="url(#dam)"/>
+                <rect x="10" y="10" width="230" height="330" fill="none" stroke="#d2a15a" stroke-opacity=".8" stroke-width="1.2"/>
+                <rect x="17" y="17" width="216" height="316" fill="none" stroke="#d2a15a" stroke-opacity=".4" stroke-width=".7"/>
+                <path d="M125 96 L194 175 L125 254 L56 175 Z" fill="#160409" stroke="#d2a15a" stroke-opacity=".85"/>
+                <path d="M125 108 L183 175 L125 242 L67 175 Z" fill="none" stroke="#d2a15a" stroke-opacity=".45" stroke-width=".7"/>
+                <mask id="mnCut2" maskUnits="userSpaceOnUse" x="0" y="0" width="250" height="350">
+                  <rect width="250" height="350" fill="#fff"/><circle cx="161" cy="146" r="42" fill="#000"/>
+                </mask>
+                <circle cx="125" cy="178" r="41" fill="#d2a15a" mask="url(#mnCut2)"/>
+                <circle cx="170" cy="120" r="2.4" fill="#d2a15a" opacity=".8"/>
+                <circle cx="180" cy="138" r="1.4" fill="#d2a15a" opacity=".5"/>
+                <text x="125" y="288" text-anchor="middle" font-family="Georgia,serif" font-size="19" letter-spacing="5" fill="#d2a15a" fill-opacity=".95">M·N</text>
+                <text x="127" y="308" text-anchor="middle" font-family="Georgia,serif" font-size="7.5" letter-spacing="3.5" fill="#d2a15a" fill-opacity=".6">MEIA-NOITE</text>
+                <g stroke="#d2a15a" stroke-opacity=".6" fill="none">
+                  <path d="M31 45 Q31 31 45 31"/><path d="M219 45 Q219 31 205 31"/>
+                  <path d="M219 305 Q219 319 205 319"/><path d="M31 305 Q31 319 45 319"/>
+                </g>
+                <g fill="#d2a15a" fill-opacity=".6">
+                  <circle cx="34" cy="34" r="1.3"/><circle cx="216" cy="34" r="1.3"/>
+                  <circle cx="216" cy="316" r="1.3"/><circle cx="34" cy="316" r="1.3"/>
+                </g>
+              </svg>
+              <div class="sheen"></div>
+            </div>
+            <div class="face front" id="front">
+              <div class="sheen"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="hint" id="hint">toque na carta para revelar</p>
+    <div class="actions">
+      <button class="btn btn-ghost" id="btnPass" disabled>Passar · 3</button>
+      <button class="btn btn-solid" id="btnDone" disabled><span class="ic" data-icon="check"></span>Feito</button>
+    </div>
+  </section>
+
+  <!-- ============ FIM ============ -->
+  <section class="screen" id="scr-end">
+    <p class="eyebrow">Fim do baralho</p>
+    <h2 class="end-title" id="endTitle">Boa <em>noite.</em></h2>
+    <p class="statline" id="statline"></p>
+    <p class="lede" id="endLede"></p>
+    <div class="end-actions">
+      <button class="btn btn-solid btn-block" id="btnAgain"><span class="ic" data-icon="restart"></span>Jogar de novo</button>
+      <button class="btn btn-ghost btn-block" id="btnExit"><span class="ic" data-icon="moon"></span>Encerrar a noite</button>
+    </div>
+  </section>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   MEIA-NOITE — baralho picante para dois
+   ============================================================ */
+const $ = s => document.querySelector(s);
+
+/* ---- ícones SVG inline ---- */
+const ICONS = {
+  moon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+  restart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>',
+  music:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+  volOn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>',
+  volOff:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="m22 9-6 6"/><path d="m16 9 6 6"/></svg>'
+};
+document.querySelectorAll('[data-icon]').forEach(n=>{ n.innerHTML = ICONS[n.dataset.icon] || ''; });
+
+const LEVELS = {1:'Doce', 2:'Picante', 3:'Ousada'};
+
+/* ---- as cartas — {p} = quem executa, {o} = o outro ---- */
+const DECK = {
+  1: [
+    "Segurem as mãos por um minuto inteiro, dedos entrelaçados, olhos nos olhos. Quem desviar primeiro, paga a próxima.",
+    "{p}, massageie as mãos de {o}, dedo por dedo, como se fosse a coisa mais importante do mundo.",
+    "Um beijo de trinta segundos, sem pressa e sem usar as mãos.",
+    "{p}, conte ao ouvido de {o} o que pensou na primeira vez que quis beijá-lo.",
+    "{p}, escolha três pontos do corpo de {o} para beijar. Rosto e mãos não contam.",
+    "Dancem uma música inteira coladinhos — podem cantarolar, se não houver música tocando.",
+    "Troquem olhares por quarenta segundos sem rir. Quem quebrar primeiro, tira uma peça de roupa.",
+    "{p}, faça um elogio a {o} que ninguém nunca tinha feito antes. Vale demorar para pensar.",
+    "{p}, beije o pescoço de {o} contando até dez, na velocidade de uma vela derretendo.",
+    "Revelem o momento em que sentiram borboletas pela primeira vez. Quem terminar de contar por último, beija primeiro.",
+    "Fiquem de pé, corpos encostados, respirando juntos por um minuto inteiro. Olhos fechados.",
+    "{p}, beije a palma da mão de {o} como se fosse a última noite do mundo.",
+    "{p}, descreva o cheiro de {o} em três palavras. Depois, {o} diz se você acertou.",
+    "Contem como seria o encontro dos sonhos com a pessoa ao lado. Todos os detalhes."
+  ],
+  2: [
+    "{p}, percorra o corpo de {o} com beijos por cima da roupa, do pulso até o pescoço, sem usar as mãos.",
+    "{p}, retire uma peça de roupa de {o} na velocidade em que uma vela queima.",
+    "Beijem-se por um minuto inteiro tocando apenas no rosto um do outro. Nada mais. Boa sorte.",
+    "{p}, sussurre três coisas que quer fazer com {o} hoje: uma é verdade, duas são mentira. {o} adivinha.",
+    "{o} aponta um lugar. {p} beija. Não há negociação.",
+    "{p}, percorra o rosto e o pescoço de {o} com a ponta dos dedos por um minuto — sem beijar. Quem quebrar primeiro, paga dobrado.",
+    "{p}, deite-se e feche os olhos. {o} vai percorrer seu corpo com as mãos por dois minutos. Proibido ajudar.",
+    "Cada um tira uma peça de roupa — ao mesmo tempo e sem parar de se olhar.",
+    "{p}, faça uma retirada lenta de uma peça sua, enquanto {o} assiste sentado, sem poder tocar.",
+    "Beijem-se como se fosse a despedida de uma viagem de um ano. Um minuto inteiro.",
+    "{p}, escolha: revelar a sua fantasia favorita — ou aceitar um pedido de {o} sem saber qual é.",
+    "Massageiem a parte do corpo que o outro escolher. As mãos são obrigatórias. O resto, é opcional."
+  ],
+  3: [
+    "{p}, sussurre ao ouvido de {o}, em detalhes e sem pressa, exatamente o que você quer fazer agora.",
+    "Quem estiver com mais roupas tira todas. O outro tem trinta segundos de silêncio para admirar.",
+    "{p}, beije {o} do jeito que você sempre quis e nunca teve coragem.",
+    "{o} guia. {p} obedece. Pelos próximos minutos, {p} só faz o que ouvir.",
+    "Uma massagem completa, das mãos à nuca, sem pular um centímetro. Luzes baixas, sem pressa.",
+    "{p}, escolha um lugar de {o} que você nunca beijou. Corrija isso imediatamente.",
+    "{p}, retire todas as suas roupas enquanto {o} escolhe a música da próxima dança.",
+    { t: "Esta é a última carta do baralho. Ela não traz instruções — apenas permissão. A partir daqui, vocês não precisam mais de cartas. Boa noite.", final: true }
+  ]
+};
+
+/* ---- estado ---- */
+const S = {
+  p:['',''], mode:'rising', turn:0, passes:[3,3],
+  queue:[], level:1, round:0, done:0, skipped:0,
+  current:null, revealed:false, busy:false, t0:0,
+  muted:false, ambientOn:true, screen:'scr-intro'
+};
+
+const el = {
+  card:$('#card'), slide:$('#slide'), box:$('#cardBox'), stage:$('#stage'),
+  front:$('#front'), hint:$('#hint'), turnName:$('#turnName'),
+  countTxt:$('#countTxt'), pass:$('#btnPass'), done:$('#btnDone'),
+  toast:$('#toast')
+};
+
+/* ---- utilidades ---- */
+function roman(n){
+  const t=[[50,'L'],[40,'XL'],[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']];
+  let r=''; for(const [v,s] of t){ while(n>=v){ r+=s; n-=v; } } return r||'I';
+}
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fill(t,p,o){
+  return esc(t).replace(/\{p\}/g,`<b class="pn">${esc(p)}</b>`).replace(/\{o\}/g,`<b class="pn">${esc(o)}</b>`);
+}
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function go(id){ S.screen=id; document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active', s.id===id)); }
+let toastT;
+function toast(msg){ el.toast.textContent=msg; el.toast.classList.add('on');
+  clearTimeout(toastT); toastT=setTimeout(()=>el.toast.classList.remove('on'),2300); }
+
+/* ============================================================
+   ÁUDIO — efeitos discretos + groove de strip-tease
+   ============================================================ */
+let AC=null;
+function actx(){
+  if(S.muted) return null;
+  if(!AC){ const C=window.AudioContext||window.webkitAudioContext; if(!C) return null; AC=new C(); }
+  if(AC.state==='suspended') AC.resume();
+  return AC;
+}
+function tone(f,dur,type,vol,delay=0){
+  const a=actx(); if(!a) return;
+  const t=a.currentTime+delay, o=a.createOscillator(), g=a.createGain();
+  o.type=type; o.frequency.value=f;
+  g.gain.setValueAtTime(0,t);
+  g.gain.linearRampToValueAtTime(vol,t+.02);
+  g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t+dur+.05);
+}
+const sfx = {
+  accept(){ tone(392,.25,'triangle',.05); tone(587.33,.3,'triangle',.04,.08); },
+  final(){ [261.6,329.6,392,523.3].forEach((f,i)=>tone(f,.7,'sine',.05,i*.16)); }
+};
+
+/* ---- groove de strip-tease: baixo caminhando + swing + metais ---- */
+const GROOVE = { on:false, timer:null, step:0, next:0, bpm:76, master:null, nzbuf:null };
+const BASS = [73.42,0,87.31,0,73.42,0,98,0,87.31,0,82.41,0,65.41,0,58.27,61.74];
+
+function nzBuf(a){
+  if(!GROOVE.nzbuf){
+    GROOVE.nzbuf=a.createBuffer(1,a.sampleRate,a.sampleRate);
+    const d=GROOVE.nzbuf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+  }
+  return GROOVE.nzbuf;
+}
+function gBass(f,t){
+  const a=AC, o=a.createOscillator(), g=a.createGain(), lp=a.createBiquadFilter();
+  o.type='triangle'; o.frequency.value=f;
+  lp.type='lowpass'; lp.frequency.value=420;
+  g.gain.setValueAtTime(.001,t);
+  g.gain.linearRampToValueAtTime(.17,t+.015);
+  g.gain.exponentialRampToValueAtTime(.001,t+.42);
+  o.connect(lp); lp.connect(g); g.connect(GROOVE.master);
+  o.start(t); o.stop(t+.45);
+}
+function gKick(t,v=1){
+  const a=AC, o=a.createOscillator(), g=a.createGain();
+  o.type='sine';
+  o.frequency.setValueAtTime(110,t);
+  o.frequency.exponentialRampToValueAtTime(42,t+.14);
+  g.gain.setValueAtTime(.26*v,t);
+  g.gain.exponentialRampToValueAtTime(.001,t+.2);
+  o.connect(g); g.connect(GROOVE.master); o.start(t); o.stop(t+.22);
+}
+function gHat(t,v=.032){
+  const a=AC, s=a.createBufferSource(); s.buffer=nzBuf(a);
+  const hp=a.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=7000;
+  const g=a.createGain();
+  g.gain.setValueAtTime(v,t);
+  g.gain.exponentialRampToValueAtTime(.0008,t+.05);
+  s.connect(hp); hp.connect(g); g.connect(GROOVE.master);
+  s.start(t); s.stop(t+.07);
+}
+function gBrush(t,v=.055){
+  const a=AC, s=a.createBufferSource(); s.buffer=nzBuf(a);
+  const bp=a.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=1900; bp.Q.value=.9;
+  const g=a.createGain();
+  g.gain.setValueAtTime(v,t);
+  g.gain.exponentialRampToValueAtTime(.0008,t+.13);
+  s.connect(bp); bp.connect(g); g.connect(GROOVE.master);
+  s.start(t); s.stop(t+.15);
+}
+function gStab(t,v=1){
+  const a=AC, g=a.createGain(), lp=a.createBiquadFilter();
+  lp.type='lowpass'; lp.frequency.value=1400;
+  g.gain.setValueAtTime(.0001,t);
+  g.gain.linearRampToValueAtTime(.1*v,t+.02);
+  g.gain.exponentialRampToValueAtTime(.0008,t+.3);
+  lp.connect(g); g.connect(GROOVE.master);
+  const notes=[293.66,349.23,440];
+  notes.forEach((f,i)=>{
+    const o=a.createOscillator(), og=a.createGain();
+    o.type='sawtooth';
+    o.frequency.setValueAtTime(f*1.02,t);
+    o.frequency.exponentialRampToValueAtTime(f*.99,t+.22);
+    o.detune.value=(i%2?4:-4);
+    og.gain.value=.34;
+    o.connect(og); og.connect(lp); o.start(t); o.stop(t+.32);
+  });
+}
+function gTick(){
+  const a=AC; if(!a||!GROOVE.on) return;
+  const spb=60/GROOVE.bpm/2;
+  while(GROOVE.next < a.currentTime+.25){
+    const t=GROOVE.next, s=GROOVE.step;
+    const sw=(s%2===1)? spb*.26 : 0;
+    if(BASS[s]) gBass(BASS[s], t+sw);
+    if(s===0||s===8) gKick(t);
+    if(s===4||s===12) gBrush(t);
+    if(s%2===0) gHat(t+sw);
+    if(s===3||s===11) gStab(t+sw);
+    GROOVE.next+=spb; GROOVE.step=(GROOVE.step+1)%16;
+  }
+}
+function gStart(){
+  const a=actx(); if(!a||GROOVE.on) return;
+  GROOVE.on=true; GROOVE.step=0;
+  GROOVE.next=a.currentTime+.15;
+  const m=a.createGain();
+  m.gain.value=0; m.connect(a.destination);
+  m.gain.linearRampToValueAtTime(.72, a.currentTime+2);
+  GROOVE.master=m;
+  GROOVE.timer=setInterval(gTick,60);
+}
+function gStop(){
+  if(!GROOVE.on) return; GROOVE.on=false;
+  clearInterval(GROOVE.timer); GROOVE.timer=null;
+  const a=AC;
+  if(a&&GROOVE.master){
+    const m=GROOVE.master;
+    m.gain.cancelScheduledValues(a.currentTime);
+    m.gain.setValueAtTime(m.gain.value,a.currentTime);
+    m.gain.linearRampToValueAtTime(0,a.currentTime+.6);
+    setTimeout(()=>{ try{m.disconnect()}catch(e){} },700);
+  }
+  GROOVE.master=null;
+}
+
+/* ---- fagulhas ambiente: só as suaves de fundo, sem explosões ---- */
+const cv=$('#embers'), ctx=cv.getContext('2d');
+let W,H, parts=[], rate=4, acc=0, hueBase=32;
+function resize(){
+  const d=window.devicePixelRatio||1;
+  W=innerWidth; H=innerHeight;
+  cv.width=W*d; cv.height=H*d; cv.style.width=W+'px'; cv.style.height=H+'px';
+  ctx.setTransform(d,0,0,d,0,0);
+  if(S.current) fitCardText();
+}
+function spawn(){
+  parts.push({
+    x:Math.random()*W, y:H+10,
+    vx:(Math.random()-.5)*.4,
+    vy:-(.35+Math.random()*.9),
+    r:.8+Math.random()*1.8,
+    a:.55+Math.random()*.45,
+    d:.003+Math.random()*.005,
+    ph:Math.random()*6.28,
+    hue:hueBase+(Math.random()*14-7)
+  });
+}
+let last=performance.now();
+(function frame(now){
+  const dt=Math.min(.05,(now-last)/1000); last=now;
+  acc+=dt*rate; while(acc>1){ acc--; spawn(); }
+  ctx.clearRect(0,0,W,H); ctx.globalCompositeOperation='lighter';
+  parts=parts.filter(p=>p.a>0 && p.y>-30);
+  for(const p of parts){
+    p.ph+=dt*2.2; p.x+=p.vx+Math.sin(p.ph)*.3; p.y+=p.vy; p.a-=p.d*dt*60;
+    const fl=.75+.25*Math.sin(p.ph*3);
+    ctx.beginPath(); ctx.fillStyle=`hsla(${p.hue},85%,64%,${Math.max(0,p.a*.13*fl)})`;
+    ctx.arc(p.x,p.y,p.r*3.2,0,7); ctx.fill();
+    ctx.beginPath(); ctx.fillStyle=`hsla(${p.hue},90%,70%,${Math.max(0,p.a*fl)})`;
+    ctx.arc(p.x,p.y,p.r,0,7); ctx.fill();
+  }
+  requestAnimationFrame(frame);
+})(last);
+
+/* ---- baralho e fluxo ---- */
+function buildQueue(){
+  const prep=n=>shuffle(DECK[n].map(c=>typeof c==='string'?{t:c}:{...c})).map(c=>({...c,level:n}));
+  if(S.mode==='slow')  return prep(1);
+  if(S.mode==='hot')   return [...prep(2),...prep(3)];
+  return [...prep(1),...prep(2),...prep(3)];
+}
+
+function start(){
+  const n1=$('#inp1').value.trim(), n2=$('#inp2').value.trim();
+  if(!n1||!n2){ toast('Digam seus nomes para começar'); (!n1?$('#inp1'):$('#inp2')).focus(); return; }
+  S.p=[n1,n2];
+  S.mode=document.querySelector('input[name=mode]:checked').value;
+  S.turn=0; S.passes=[3,3]; S.done=0; S.skipped=0; S.round=0;
+  S.level=S.mode==='hot'?2:1;
+  S.queue=buildQueue(); S.t0=Date.now();
+  go('scr-game');
+  if(S.ambientOn) gStart();
+  serve();
+}
+
+function updateHud(){
+  el.turnName.textContent=S.p[S.turn];
+  const n=S.queue.length;
+  el.countTxt.textContent = n===0 ? 'última carta' : (n===1 ? 'resta 1' : `restam ${n}`);
+  el.pass.textContent=`Passar · ${S.passes[S.turn]}`;
+}
+
+function renderFront(card){
+  const p=S.p[S.turn], o=S.p[1-S.turn];
+  el.front.innerHTML=`
+    <div class="sheen"></div>
+    <div class="cf-top"><span>Carta ${roman(S.round)}</span><span>Meia-Noite</span></div>
+    <div class="cf-tag ${card.final?'final':'lv'+card.level}">${card.final?'A última carta':LEVELS[card.level]+' · '+roman(card.level)}</div>
+    <p class="cf-text ${card.final?'final-t':''}"><span>${fill(card.t,p,o)}</span></p>
+    <div class="cf-bottom"><span class="cf-line"></span><span>cabe a <b>${esc(p)}</b></span><span class="cf-line"></span></div>`;
+  fitCardText();
+}
+
+/* ---- auto-ajuste: reduz a fonte até o texto caber ---- */
+function fitCardText(){
+  const wrap=el.front.querySelector('.cf-text');
+  const span=wrap&&wrap.querySelector('span');
+  if(!wrap||!span) return;
+  wrap.style.fontSize='';
+  let guard=0;
+  while(guard<18 && (span.offsetHeight>wrap.clientHeight+2 || span.scrollWidth>wrap.clientWidth+2)){
+    const s=parseFloat(getComputedStyle(wrap).fontSize)*.94;
+    wrap.style.fontSize=s+'px';
+    guard++;
+  }
+}
+
+function serve(){
+  const card=S.queue.shift();
+  if(!card) return endGame(false);
+  S.round++; S.current=card; S.level=card.level;
+  S.revealed=false; S.busy=true;
+
+  renderFront(card);
+
+  el.card.style.transition='none';
+  el.card.classList.remove('flipped');
+  el.slide.classList.add('notrans');
+  el.slide.classList.remove('out');
+  el.slide.classList.add('pre');
+  void el.slide.offsetWidth;
+  el.card.style.transition='';
+  el.slide.classList.remove('notrans','pre');
+
+  tiltFactor=1; updateHud();
+  el.hint.hidden=false;
+  el.done.disabled=true; el.pass.disabled=true;
+  S.busy=false;
+}
+
+function reveal(){
+  if(S.busy||S.revealed) return;
+  S.revealed=true;
+  el.card.classList.add('flipped');   /* silenciosa: sem estralo, sem faíscas */
+  el.hint.hidden=true;
+  el.done.disabled=false;
+  el.pass.disabled=!!S.current.final;
+  tiltFactor=.3;
+}
+
+function leave(cb){
+  el.slide.classList.add('out');
+  setTimeout(cb,580);
+}
+
+function onDone(){
+  if(!S.revealed||S.busy) return;
+  S.busy=true; S.done++;
+  sfx.accept();
+  leave(()=>{
+    if(S.current.final) return endGame(true);
+    S.turn=1-S.turn; S.busy=false; serve();
+  });
+}
+
+function onPass(){
+  if(!S.revealed||S.busy||S.current.final) return;
+  if(S.passes[S.turn]<=0){ toast(`Sem passes restantes para ${S.p[S.turn]}`); return; }
+  S.busy=true; S.passes[S.turn]--; S.skipped++;
+  toast(`${S.p[S.turn]} passou a vez`);
+  leave(()=>{ S.turn=1-S.turn; S.busy=false; serve(); });
+}
+
+function endGame(fromFinal){
+  const mins=Math.max(1,Math.round((Date.now()-S.t0)/60000));
+  $('#endTitle').innerHTML=fromFinal?'Boa <em>noite.</em>':'A noite<br><em>ficou de pé.</em>';
+  $('#statline').innerHTML=`<b>${roman(S.done)}</b> cartas jogadas · <b>${S.skipped}</b> ${S.skipped===1?'passe':'passes'} · <b>${mins} min</b>`;
+  $('#endLede').textContent=fromFinal?'O baralho acabou. Vocês, não.':'O resto da noite não precisa de baralho.';
+  if(fromFinal) sfx.final();
+  go('scr-end');
+}
+
+/* ---- tilt 3D + brilho que segue o cursor ---- */
+let tiltX=0,tiltY=0,curX=0,curY=0,idleT=0,hasPointer=false,tiltFactor=1;
+el.stage.addEventListener('pointermove',e=>{
+  hasPointer=true;
+  const r=el.box.getBoundingClientRect();
+  const px=(e.clientX-r.left)/r.width-.5, py=(e.clientY-r.top)/r.height-.5;
+  tiltY=px*16*tiltFactor; tiltX=-py*12*tiltFactor;
+  el.card.style.setProperty('--sx',((px+.5)*100)+'%');
+  el.card.style.setProperty('--sy',((py+.5)*100)+'%');
+});
+el.stage.addEventListener('pointerleave',()=>{ hasPointer=false; tiltX=0; tiltY=0; });
+(function loop(){
+  if(!hasPointer){ idleT+=.012; tiltX=Math.sin(idleT)*2.4; tiltY=Math.cos(idleT*.8)*3.4; }
+  curX+=(tiltX-curX)*.07; curY+=(tiltY-curY)*.07;
+  el.box.style.transform=`rotateX(${curX.toFixed(2)}deg) rotateY(${curY.toFixed(2)}deg)`;
+  requestAnimationFrame(loop);
+})();
+
+/* ---- ligações ---- */
+ $('#btnIntro').onclick=()=>go('scr-setup');
+ $('#btnStart').onclick=start;
+el.card.addEventListener('click',reveal);
+el.done.onclick=onDone;
+el.pass.onclick=onPass;
+ $('#btnRestart').onclick=()=>{ gStop(); go('scr-setup'); toast('Baralho recolhido'); };
+ $('#btnAgain').onclick=start;
+ $('#btnExit').onclick=()=>{ gStop(); go('scr-intro'); };
+
+ $('#btnSound').onclick=()=>{
+  S.muted=!S.muted;
+  $('#icoOn').hidden=S.muted; $('#icoOff').hidden=!S.muted;
+  if(S.muted){ gStop(); toast('Som desligado'); }
+  else{
+    toast('Som ligado');
+    if(S.screen==='scr-game'&&S.ambientOn) gStart();
+  }
+};
+
+ $('#ambToggle').onclick=()=>{
+  S.ambientOn=!S.ambientOn;
+  $('#ambSw').dataset.on=S.ambientOn;
+  toast(S.ambientOn?'Trilha da noite ligada':'Trilha da noite desligada');
+};
+
+[$('#inp1'),$('#inp2')].forEach(i=>i.addEventListener('keydown',e=>{ if(e.key==='Enter') start(); }));
+document.querySelectorAll('.mode').forEach(m=>{
+  m.querySelector('input').addEventListener('change',()=>{
+    document.querySelectorAll('.mode').forEach(x=>x.classList.remove('sel'));
+    m.classList.add('sel');
+  });
+});
+
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{ if(S.current) fitCardText(); });
+let rszT; addEventListener('resize',()=>{ clearTimeout(rszT); rszT=setTimeout(()=>{ if(S.current) fitCardText(); },120); });
+</script>
+</body>
+</html>
